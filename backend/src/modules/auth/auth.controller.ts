@@ -15,7 +15,6 @@ export class AuthController {
 
     // ب) استدعاء الخدمة لمعالجة المنطق البرمجي والتنسيق مع قاعدة البيانات
     const result = await authService.register(validatedData);
-
     // ج) إرجاع الاستجابة بـ ApiResponse بكود 201 (Created)
     return res
       .status(201)
