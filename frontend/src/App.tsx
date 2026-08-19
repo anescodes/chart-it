@@ -1,10 +1,12 @@
-import { AuthPage } from "./pages/Authpage";
+import React from 'react';
+import { DashboardPage } from './pages/DashboardPage';
 
-const App=()=>{
-   return(
+function App() {
+  return (
     <div>
-     <AuthPage/>
+      <DashboardPage />
     </div>
-   )
+  );
 }
+
 export default App;
