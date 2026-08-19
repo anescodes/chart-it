@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { users } from "../../db/schema.js"; // أو المسار الذي وضعت فيه الـ schema
+import { users } from "../../db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
 import type { RegisterInput, LoginInput } from "./auth.schema.js";
 
@@ -27,15 +27,18 @@ export class AuthService {
   async register(data: RegisterInput) {
     const { username, email, password } = data;
 
-    // البحث عن البريد الإلكتروني
+    // البحث عن البريد الإلكتروني أو اسم المستخدم لمنع التعارض
     const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(or(eq(users.email, email), eq(users.username, username)))
       .limit(1);
 
     if (existingUser) {
-      throw new ApiError(409, "User with this email already exists");
+      if (existingUser.email === email) {
+        throw new ApiError(409, "User with this email already exists");
+      }
+      throw new ApiError(409, "Username is already taken");
     }
 
     // تشفير كلمة المرور
@@ -56,8 +59,12 @@ export class AuthService {
         createdAt: users.createdAt,
       });
 
-    // توليد التوكن
-    const token = this.generateToken(newUser!.id);
+    if (!newUser) {
+      throw new ApiError(500, "Failed to create user account");
+    }
+
+    // توليد التوكن (تحويل المعرف إلى String لضمان عدم حدوث خطأ)
+    const token = this.generateToken(String(newUser.id));
 
     return { user: newUser, token };
   }
@@ -84,7 +91,7 @@ export class AuthService {
     }
 
     // توليد التوكن
-    const token = this.generateToken(user.id);
+    const token = this.generateToken(String(user.id));
 
     return {
       user: {
