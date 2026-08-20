@@ -1,12 +1,10 @@
-import React from 'react';
-import { DashboardPage } from './pages/DashboardPage';
+import { AuthProvider } from './context/auth.context';
+import { AppRoutes } from './routes/AppRoutes';
 
-function App() {
+export default function App() {
   return (
-    <div>
-      <DashboardPage />
-    </div>
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }
-
-export default App;
