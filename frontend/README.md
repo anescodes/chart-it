@@ -1,352 +1,138 @@
 # Chart It
 
-A modern full-stack expense management application designed to help users track, analyze, and visualize their financial activity.
-
-## 🚀 Overview
-
-**Chart It** is a full-stack web application for managing personal expenses and financial data.
-
-The project focuses on building a clean, scalable, and maintainable architecture while providing an intuitive interface for tracking transactions and visualizing financial information.
-
-The application is built with a modern React frontend and a dedicated backend API.
+A modern, full-stack AI-powered expense management system designed to help users track, analyze, and automate their financial workflows in real-time.
 
 ---
 
-## ✨ Features
+## 🚀 Overview
 
-* 🔐 User authentication
-* 📝 User registration and login
-* 💰 Expense management
-* 📊 Financial data visualization
-* 📈 Dashboard with financial statistics
-* 🗂️ Expense categories
-* 🔄 CRUD operations for expenses
-* 🛡️ Protected routes
-* ✅ Client-side form validation
-* 📱 Responsive user interface
-* 🌍 Currency and date formatting
-* 🔌 REST API integration
+**Chart It** is a full-stack web application for personal expense tracking, automated budget classification, and financial behavior analytics.
 
-> More features will be added as the project evolves.
+The project focuses on a modular, clean frontend architecture integrated with a Node.js/Express backend, Drizzle ORM, PostgreSQL database, and an **LLM-powered Natural Language AI Engine** that automatically parses unstructured text inputs and image receipts into structured transactions.
+
+---
+
+## ✨ Key Features
+
+* 🔐 **Secure Authentication** — JWT-based user login, registration, and protected routes.
+* 📊 **Financial Dashboard** — Real-time cashflow metrics, income vs. expense visual trends, and balance tracking.
+* 💸 **Transaction Management** — Full history tracking with multi-attribute filtering and status indicators.
+* 🗂️ **Category System** — Custom category tagging with dynamic icon mappings and item link counters.
+* 📈 **Advanced Analytics** — Automated weekly outflow tracking, spending distribution, and budget optimization metrics.
+* 🤖 **AI Assistant & Natural Language Parser** — Natural language text parser (e.g., *"Spent $50 on gas"*) and intelligent OCR scanning capability for automated transaction extraction.
+* 👤 **User Profile Management** — Personal settings and profile overview.
+* 📱 **Modern Dark UI** — Responsive layout built with Tailwind CSS, Lucide icons, and glassmorphism styling.
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
+* **React** & **TypeScript**
+* **Vite** — Build tool and dev server
+* **Tailwind CSS** — Utility-first styling
+* **React Router v6** — Client-side navigation & layout routing
+* **Lucide React** — Icon suite
 
-* **React**
-* **TypeScript**
-* **Vite**
-* **Tailwind CSS**
-* **Zustand** — global state management
-* **Axios** — HTTP client
-* **Zod** — schema validation
-* **React Router** — routing
-
-### Backend
-
-The frontend communicates with a separate backend through a REST API.
-
-> Backend technology and architecture are documented in the backend repository.
+### Backend Architecture
+* **Node.js** & **Express.js** — REST API Framework
+* **PostgreSQL** — Relational database
+* **Drizzle ORM** — Type-safe ORM & schema builder
+* **Zod** — Schema validation
+* **JSON Web Tokens (JWT)** & **bcrypt** — Security & Auth
+* **LLM / Vision AI API Integration** — Natural language parsing and OCR extraction
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-chart-it-frontend/
-│
-├── public/
-│   └── Static assets
-│
-├── src/
-│   │
-│   ├── api/
-│   │   ├── client.ts
-│   │   ├── auth.api.ts
-│   │   └── expenses.api.ts
-│   │
-│   ├── assets/
-│   │
-│   ├── components/
-│   │   ├── ui/
-│   │   ├── auth/
-│   │   └── layout/
-│   │
-│   ├── context/
-│   │
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   └── useExpenses.ts
-│   │
-│   ├── pages/
-│   │   ├── AuthPage.tsx
-│   │   ├── DashboardPage.tsx
-│   │   └── NotFoundPage.tsx
-│   │
-│   ├── routes/
-│   │   ├── AppRoutes.tsx
-│   │   └── ProtectedRoute.tsx
-│   │
-│   ├── schemas/
-│   │   └── auth.schema.ts
-│   │
-│   ├── types/
-│   │   ├── auth.types.ts
-│   │   └── expense.types.ts
-│   │
-│   ├── utils/
-│   │   ├── currency.ts
-│   │   └── date.ts
-│   │
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
+chart-it/
 │
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── api.md
+│   └── database-schema.md
 │
-├── .env.example
-├── index.html
-├── package.json
-├── tsconfig.json
-└── vite.config.ts
-```
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── layout/         # AppLayout, Sidebar
+│   │   │   └── ui/             # Reusable modals, inputs, cards
+│   │   ├── hooks/              # Auth & Data fetching hooks
+│   │   ├── pages/
+│   │   │   ├── AIAssistantPage.tsx
+│   │   │   ├── AnalyticsPage.tsx
+│   │   │   ├── Authpage.tsx
+│   │   │   ├── CategoriesPage.tsx
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── ProfilePage.tsx
+│   │   │   └── TransactionsPage.tsx
+│   │   ├── routes/
+│   │   │   └── AppRoutes.tsx
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── index.css
+│   ├── package.json
+│   └── vite.config.ts
+│
+└── backend/
+    ├── src/
+    │   ├── db/                 # Drizzle schemas and DB client
+    │   ├── routes/             # Express API routers (auth, transactions, categories, AI)
+    │   ├── controllers/        # Request handlers & Business logic
+    │   ├── middlewares/        # JWT auth verification & Zod validation
+    │   └── server.ts
+    ├── package.json
+    └── drizzle.config.ts
 
----
+🧩 System Architecture & Data Flow
+Chart It separates responsibilities between client rendering, backend validation, and AI parsing services.
 
-## 🧩 Architecture
-
-The frontend is organized by responsibility to keep the codebase maintainable and scalable.
-
-### API Layer
-
-The `api/` directory contains all communication with the backend.
-
-```text
-React Component
-      ↓
-Custom Hook
-      ↓
-API Layer
-      ↓
-Axios
-      ↓
-Backend REST API
-```
-
-Example:
-
-```text
-expenses.api.ts
-       ↓
-GET /api/expenses
-       ↓
-Spring Boot / Backend
-```
-
----
-
-### Components
-
-Reusable UI components are separated from feature-specific components.
-
-```text
-components/
-├── ui/
-├── auth/
-└── layout/
-```
-
-The `ui/` directory contains reusable components such as:
-
-* Button
-* Input
-* Card
-* Modal
-* Spinner
-
----
-
-### State Management
-
-Global application state is managed using **Zustand**.
-
-Zustand is used for state that needs to be shared between different parts of the application without unnecessarily passing props through multiple component levels.
-
----
-
-### Validation
-
-**Zod** is used to define validation schemas for user input.
-
-Example:
-
-```text
-Form
- ↓
-Zod Schema
- ↓
-Validation
- ↓
-API Request
-```
-
----
-
-### Routing
-
-React Router handles application routing.
-
-Protected routes require an authenticated user before allowing access.
-
-```text
+Plaintext
+[ React Frontend ]
+       │
+       ▼
+[ Express REST API ]
+       │
+       ├───► [ Drizzle ORM ] ───► [ PostgreSQL Database ]
+       │
+       └───► [ LLM AI Engine ] ──► (Parses raw text/OCR to JSON transactions)
+Application Routing Pipeline
+Plaintext
 Public Routes
-├── Login
-└── Register
+├── /login
+└── /register
 
-Protected Routes
-└── Dashboard
-    ├── Expenses
-    ├── Statistics
-    └── Profile
-```
-
----
-
-## ⚙️ Installation
-
-Clone the repository:
-
-```bash
+Protected AppLayout Routes
+├── /dashboard     (Overview & AI Quick Entry)
+├── /transactions  (Detailed History)
+├── /categories    (Tag Management)
+├── /analytics     (Financial Insights)
+├── /ai-hub        (AI Natural Language & OCR Hub)
+└── /profile       (User Settings)
+⚙️ Quick Start
+1. Clone & Install
+Bash
 git clone <repository-url>
-```
-
-Move into the project directory:
-
-```bash
-cd chart-it-frontend
-```
-
-Install dependencies:
-
-```bash
+cd chart-it
+2. Frontend Setup
+Bash
+cd frontend
 npm install
-```
-
----
-
-## 🔐 Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-Use `.env.example` as a reference.
-
-> Never commit private secrets or sensitive credentials to Git.
-
----
-
-## ▶️ Running the Application
-
-Start the development server:
-
-```bash
 npm run dev
-```
+3. Backend Setup
+Bash
+cd ../backend
+npm install
+npm run dev
+🔐 Environment Setup
+Create a .env file in the backend directory:
 
-The application will be available at the local development URL provided by Vite.
-
----
-
-## 🏗️ Build for Production
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-Preview the production build:
-
-```bash
-npm run preview
-```
-
----
-
-## 🧪 Code Quality
-
-Before committing changes, make sure the project builds successfully and that the implemented feature works correctly.
-
-Recommended workflow:
-
-```text
-Implement
-   ↓
-Test
-   ↓
-Review
-   ↓
-Commit
-```
-
----
-
-## 📚 Documentation
-
-Additional technical documentation can be found in the `docs/` directory.
-
-```text
-docs/
-├── architecture.md
-├── api.md
-├── authentication.md
-└── deployment.md
-```
-
----
-
-## 🗺️ Roadmap
-
-Planned improvements include:
-
-* [ ] Advanced financial analytics
-* [ ] Improved dashboard
-* [ ] Expense filtering and searching
-* [ ] Data export
-* [ ] Advanced charts
-* [ ] Notifications
-* [ ] Improved authentication
-* [ ] Automated testing
-* [ ] Docker support
-* [ ] Production deployment
-* [ ] Performance optimization
-
----
-
-## 🤝 Contributing
-
-Contributions, suggestions, and improvements are welcome.
-
-For major changes, please open an issue first to discuss the proposed change.
-
----
-
-## 📄 License
-
-This project is currently under development.
-
-License information will be added later.
-
----
-
-## 👨‍💻 Author
-
-**Anes**
-
-Built as a full-stack software engineering project with a focus on clean architecture, scalability, and practical development.
+Code snippet
+PORT=5000
+DATABASE_URL=postgresql://user:password@localhost:5432/chartit_db
+JWT_SECRET=your_super_secret_key
+AI_API_KEY=your_llm_api_key
