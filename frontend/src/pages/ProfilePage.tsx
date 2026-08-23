@@ -5,30 +5,56 @@ import {
   KeyRound, 
   ShieldCheck, 
   CheckCircle2, 
+  AlertCircle,
   Sparkles, 
   Save, 
   BadgeCheck,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/auth.context';
 
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const userName = (user as any)?.name || user?.username || 'Anes Touati';
   const userEmail = user?.email || 'anes@example.com';
 
-  // Local State for Profile Form
   const [fullName, setFullName] = useState(userName);
   const [email, setEmail] = useState(userEmail);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [isSaved, setIsSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate Profile Update
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!currentPassword || !newPassword) {
+      setErrorMsg('Please fill in both password fields.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await changePassword({ currentPassword, newPassword });
+      setSuccessMsg('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Something went wrong');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getInitials = (nameStr: string) => {
@@ -38,7 +64,6 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-10">
-      {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
           Account Settings
@@ -48,7 +73,6 @@ export const ProfilePage: React.FC = () => {
         </p>
       </div>
 
-      {/* Top Banner Card */}
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -z-10"></div>
         
@@ -72,7 +96,6 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Plan Status */}
         <div className="w-full md:w-auto bg-slate-950/60 border border-slate-800 px-4 py-3 rounded-xl flex items-center gap-3 shrink-0">
           <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-400">
             <Sparkles className="w-4 h-4" />
@@ -84,9 +107,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Form Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column: Navigation / Quick Info */}
         <div className="space-y-4">
           <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Overview</h3>
@@ -112,18 +133,22 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Update Profile & Password */}
         <div className="md:col-span-2 space-y-6">
-          <form onSubmit={handleProfileUpdate} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-6 shadow-xl">
-            {/* Success Alert */}
-            {isSaved && (
-              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-3 text-emerald-400 text-xs font-semibold animate-in fade-in duration-200">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                Profile details updated successfully!
+          <form onSubmit={handlePasswordChange} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-6 shadow-xl">
+            {errorMsg && (
+              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-3 text-rose-400 text-xs font-semibold animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {errorMsg}
               </div>
             )}
 
-            {/* Personal Info */}
+            {successMsg && (
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-3 text-emerald-400 text-xs font-semibold animate-in fade-in duration-200">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                {successMsg}
+              </div>
+            )}
+
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                 <User className="w-4 h-4 text-indigo-400" /> Personal Information
@@ -162,7 +187,6 @@ export const ProfilePage: React.FC = () => {
 
             <div className="h-[1px] bg-slate-800/80"></div>
 
-            {/* Change Password */}
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-indigo-400" /> Security & Password
@@ -193,13 +217,21 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Submit Action */}
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-indigo-600/25"
+                disabled={isLoading}
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-indigo-600/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" /> Save Changes
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" /> Save Changes
+                  </>
+                )}
               </button>
             </div>
           </form>

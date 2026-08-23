@@ -1,7 +1,6 @@
-// src/context/AuthContext.tsx
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react';
-import type { User, LoginCredentials, RegisterCredentials } from '../types/auth.types';
+import type { User, LoginCredentials, RegisterCredentials, ChangePasswordCredentials } from '../types/auth.types';
 import { authApi } from '../api/auth.api';
 
 export interface IAuthContext {
@@ -11,6 +10,7 @@ export interface IAuthContext {
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
+  changePassword: (credentials: ChangePasswordCredentials) => Promise<void>;
   logout: () => void;
 }
 
@@ -63,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   };
 
+  const changePassword = async (credentials: ChangePasswordCredentials) => {
+    await authApi.changePassword(credentials);
+  };
+
   const contextValue: IAuthContext = {
     user,
     token,
@@ -70,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     register,
+    changePassword,
     logout,
   };
 
@@ -78,4 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

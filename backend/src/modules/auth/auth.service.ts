@@ -1,10 +1,11 @@
-import bcrypt from "bcryptjs";
+import bcrypt, { compare } from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { eq, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
-import type { RegisterInput, LoginInput } from "./auth.schema.js";
+import type { RegisterInput, LoginInput, ChangePasswordInput } from "./auth.schema.js";
+import { hash } from "node:crypto";
 
 export class AuthService {
   // 1. تشفير كلمة المرور
@@ -101,5 +102,37 @@ export class AuthService {
       },
       token,
     };
+  }
+  // auth.service.ts
+  // auth.service.ts
+
+  async changePassword(userId: string, data: ChangePasswordInput) {
+    const { currentPassword, newPassword } = data;
+
+    // 1. البحث عن المستخدم باستعمال الـ userId (string)
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // 2. التحقق من صحة كلمة المرور القديمة
+    const isValid = await this.comparePassword(currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new ApiError(400, "Current password is incorrect");
+    }
+
+    // 3. تشفير كلمة المرور الجديدة وتحديث قاعدة البيانات
+    const hashedNew = await this.hashPassword(newPassword);
+    await db
+      .update(users)
+      .set({ passwordHash: hashedNew })
+      .where(eq(users.id, userId));
+
+    return { message: "Password updated successfully" };
   }
 }
