@@ -2,7 +2,8 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { AuthService } from "./auth.service.js";
-import { registerSchema, loginSchema } from "./auth.schema.js";
+import { registerSchema, loginSchema, changePasswordSchema } from "./auth.schema.js";
+import { ApiError } from "../../utils/ApiError.js";
 
 const authService = new AuthService();
 
@@ -34,4 +35,22 @@ export class AuthController {
       .status(200)
       .json(new ApiResponse(200, result, "Logged in successfully"));
   });
+  // auth.controller.ts
+
+changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const validatedData = changePasswordSchema.parse(req.body);
+
+  // 👈 اقرأ من req.userId مباشرة لأن الـ Middleware يضعها هناك
+  const userId = req.userId;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  const result = await authService.changePassword(userId, validatedData);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Password changed successfully"));
+});
 }

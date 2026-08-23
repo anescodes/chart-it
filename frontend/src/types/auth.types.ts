@@ -21,3 +21,7 @@ export interface AuthResponse {
   user: User;
   token: string;
 }
+export interface ChangePasswordCredentials {
+  currentPassword: string;
+  newPassword: string;
+}

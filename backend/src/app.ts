@@ -8,9 +8,18 @@ import transactionRouter from  './modules/transaction/transaction.route.js';
 
 const app = express();
 
+// في ملف الباك إند (app.ts / server.ts)
+
 app.use(
   cors({
-    origin: ['http://localhost:5177', 'http://127.0.0.1:5177'],
+    // يسمح بأي منفذ قادم من localhost أو 127.0.0.1 أثناء التطوير
+    origin: (origin, callback) => {
+      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
