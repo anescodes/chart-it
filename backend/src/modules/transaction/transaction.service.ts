@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, isNull, or } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { transactions, categories } from '../../db/schema.js';
 import type { CreateTransactionInput } from './transaction.schema.js';
@@ -6,6 +6,8 @@ import { ApiError } from '../../utils/ApiError.js';
 
 export class TransactionService {
   async getUserTransactions(userId: string) {
+    if (!userId) throw new ApiError(401, 'User authentication required');
+
     return await db
       .select({
         id: transactions.id,
@@ -19,7 +21,7 @@ export class TransactionService {
           id: categories.id,
           name: categories.name,
           type: categories.type,
-          color: categories.color, // تعتمد على color الموجود في الـ schema
+          color: categories.color,
         },
       })
       .from(transactions)
@@ -29,6 +31,8 @@ export class TransactionService {
   }
 
   async getDashboardSummary(userId: string) {
+    if (!userId) throw new ApiError(401, 'User authentication required');
+
     const stats = await db
       .select({
         type: transactions.type,
@@ -54,14 +58,25 @@ export class TransactionService {
   }
 
   async createTransaction(userId: string, input: CreateTransactionInput) {
-    if (input.categoryId) {
+    // 1. التحقق الصارم من وجود userId لمنع إرسال default في PostgreSQL
+    if (!userId) {
+      throw new ApiError(401, 'Unauthorized: User ID is missing');
+    }
+
+    // 2. معالجة الـ categoryId إذا كان فارغاً أو غير معرّف
+    const cleanCategoryId = input.categoryId && input.categoryId.trim() !== '' ? input.categoryId : null;
+
+    if (cleanCategoryId) {
       const [categoryExists] = await db
         .select({ id: categories.id })
         .from(categories)
         .where(
           and(
-            eq(categories.id, input.categoryId),
-            sql`(${categories.userId} IS NULL OR ${categories.userId} = ${userId})`
+            eq(categories.id, cleanCategoryId),
+            or(
+              isNull(categories.userId),
+              eq(categories.userId, userId)
+            )
           )
         );
 
@@ -70,13 +85,14 @@ export class TransactionService {
       }
     }
 
+    // 3. إدخال المعاملة مع ضمان التوافق التام مع Drizzle Schema
     const [newTransaction] = await db
       .insert(transactions)
       .values({
-        userId,
+        userId: userId, // إسناد صريح ومباشر
         amount: input.amount.toFixed(2),
         type: input.type,
-        categoryId: input.categoryId || null,
+        categoryId: cleanCategoryId,
         description: input.description || null,
         transactionDate: input.transactionDate ? new Date(input.transactionDate) : new Date(),
       })
@@ -86,6 +102,8 @@ export class TransactionService {
   }
 
   async deleteTransaction(userId: string, transactionId: string) {
+    if (!userId) throw new ApiError(401, 'User authentication required');
+
     const [deleted] = await db
       .delete(transactions)
       .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))
