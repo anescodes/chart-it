@@ -1,11 +1,10 @@
-import bcrypt, { compare } from "bcryptjs";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { eq, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
-import type { RegisterInput, LoginInput, ChangePasswordInput } from "./auth.schema.js";
-import { hash } from "node:crypto";
+import type { RegisterInput, LoginInput } from "./auth.schema.js";
 
 export class AuthService {
   // 1. تشفير كلمة المرور
@@ -18,10 +17,10 @@ export class AuthService {
     return await bcrypt.compare(password, hash);
   }
 
-  // 3. إنشاء الـ Token
+  // 3. إنشاء الـ Token (نضع id و userId معاً لضمان القراءة في أي middleware)
   generateToken(userId: string): string {
     const secret = process.env.JWT_SECRET || 'default_secret';
-    return jwt.sign({ id: userId }, secret, { expiresIn: '7d' });
+    return jwt.sign({ id: userId, userId: userId }, secret, { expiresIn: '7d' });
   }
 
   // 4. تسجيل مستخدم جديد
@@ -64,7 +63,7 @@ export class AuthService {
       throw new ApiError(500, "Failed to create user account");
     }
 
-    // توليد التوكن (تحويل المعرف إلى String لضمان عدم حدوث خطأ)
+    // توليد التوكن
     const token = this.generateToken(String(newUser.id));
 
     return { user: newUser, token };
@@ -103,13 +102,10 @@ export class AuthService {
       token,
     };
   }
-  // auth.service.ts
-  // auth.service.ts
-
-  async changePassword(userId: string, data: ChangePasswordInput) {
+  // 6. تغيير كلمة المرور
+  async changePassword(userId: string, data: { currentPassword: string; newPassword: string }) {
     const { currentPassword, newPassword } = data;
 
-    // 1. البحث عن المستخدم باستعمال الـ userId (string)
     const [user] = await db
       .select()
       .from(users)
@@ -120,19 +116,18 @@ export class AuthService {
       throw new ApiError(404, "User not found");
     }
 
-    // 2. التحقق من صحة كلمة المرور القديمة
-    const isValid = await this.comparePassword(currentPassword, user.passwordHash);
-    if (!isValid) {
-      throw new ApiError(400, "Current password is incorrect");
+    const isPasswordValid = await this.comparePassword(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new ApiError(400, "Incorrect current password");
     }
 
-    // 3. تشفير كلمة المرور الجديدة وتحديث قاعدة البيانات
-    const hashedNew = await this.hashPassword(newPassword);
+    const newHashedPassword = await this.hashPassword(newPassword);
+
     await db
       .update(users)
-      .set({ passwordHash: hashedNew })
+      .set({ passwordHash: newHashedPassword })
       .where(eq(users.id, userId));
 
-    return { message: "Password updated successfully" };
+    return true;
   }
 }

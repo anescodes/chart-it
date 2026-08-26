@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { TransactionController } from './transaction.controller.js';
-import { authenticateToken } from '../../middlewares/auth.middleware.js';
+import { authenticateToken } from '../../middlewares/auth.middleware.js'; // 👈 ضروري جداً
 
-const transactionRouter = Router();
+const router = Router();
 const controller = new TransactionController();
 
-transactionRouter.use(authenticateToken);
+router.use(authenticateToken);
 
-transactionRouter.get('/', controller.getTransactions);
-transactionRouter.get('/summary', controller.getSummary);
-transactionRouter.post('/', controller.createTransaction);
-transactionRouter.delete('/:id', controller.deleteTransaction);
+router.get('/', controller.getTransactions);
+router.get('/summary', controller.getSummary);
+router.post('/', controller.createTransaction);
+router.delete('/:id', controller.deleteTransaction);
 
-export default transactionRouter;
+export default router;

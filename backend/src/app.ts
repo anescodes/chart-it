@@ -8,7 +8,6 @@ import transactionRouter from  './modules/transaction/transaction.route.js';
 
 const app = express();
 
-// في ملف الباك إند (app.ts / server.ts)
 
 app.use(
   cors({
