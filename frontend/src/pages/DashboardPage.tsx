@@ -1,337 +1,566 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingDown, 
   TrendingUp, 
   Wallet, 
   PieChart as PieIcon, 
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Home, 
-  Tv, 
-  Plus, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Loader2,
+  Tag,
+  PlusCircle,
   X,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  Sparkles
+  AreaChart as AreaIcon,
+  BarChart3 as BarIcon,
+  LineChart as LineIcon,
+  Calendar
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
+import { transactionApi } from '../api/transaction.api';
+import { categoryApi } from '../api/category.api';
 
 export interface CategoryStat {
   id: string;
   name: string;
   amount: number;
   percentage: number;
-  icon: any;
   color: string;
   text: string;
 }
 
+const COLOR_PALETTE = [
+  { color: 'bg-emerald-500', text: 'text-emerald-400' },
+  { color: 'bg-indigo-500', text: 'text-indigo-400' },
+  { color: 'bg-amber-500', text: 'text-amber-400' },
+  { color: 'bg-sky-500', text: 'text-sky-400' },
+  { color: 'bg-violet-500', text: 'text-violet-400' },
+  { color: 'bg-rose-500', text: 'text-rose-400' },
+];
+
+const formatCurrency = (val: number) => 
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
 export const DashboardPage: React.FC = () => {
-  // State for Categories Stats
-  const [categories, setCategories] = useState<CategoryStat[]>([
-    { id: '1', name: 'Food & Dining', amount: 1250, percentage: 38, icon: Utensils, color: 'bg-emerald-500', text: 'text-emerald-400' },
-    { id: '2', name: 'Housing & Rent', amount: 900, percentage: 28, icon: Home, color: 'bg-indigo-500', text: 'text-indigo-400' },
-    { id: '3', name: 'Shopping', amount: 450, percentage: 14, icon: ShoppingBag, color: 'bg-amber-500', text: 'text-amber-400' },
-    { id: '4', name: 'Transportation', amount: 350, percentage: 11, icon: Car, color: 'bg-sky-500', text: 'text-sky-400' },
-    { id: '5', name: 'Subscriptions', amount: 280, percentage: 9, icon: Tv, color: 'bg-violet-500', text: 'text-violet-400' },
-  ]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [rawTransactions, setRawTransactions] = useState<any[]>([]);
+  const [categoriesStats, setCategoriesStats] = useState<CategoryStat[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  
+  const [totalBalance, setTotalBalance] = useState<number>(0);
+  const [totalIncome, setTotalIncome] = useState<number>(0);
+  const [totalExpenses, setTotalExpenses] = useState<number>(0);
 
-  // Overall Financial States
-  const [totalBalance, setTotalBalance] = useState(8420);
-  const [monthlyIncome, setMonthlyIncome] = useState(5200);
-  const [totalExpenses, setTotalExpenses] = useState(3230);
+  // إعدادات نوع الرسم البياني والـ Aggregation
+  const [chartView, setChartView] = useState<'NET' | 'AREA' | 'BAR'>('NET');
+  const [timeGroupBy, setTimeGroupBy] = useState<'DAY' | 'MONTH'>('DAY');
 
-  // Modal & Form State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [txType, setTxType] = useState<'expense' | 'income'>('expense');
-  const [txAmount, setTxAmount] = useState('');
-  const [txCategory, setTxCategory] = useState(categories[0].name);
-  const [txTitle, setTxTitle] = useState('');
+  // إعدادات النافذة المنبثقة (Modal)
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [txType, setTxType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
+  const [amountInput, setAmountInput] = useState<string>('');
+  const [selectedCatId, setSelectedCatId] = useState<string>('');
+  const [descriptionInput, setDescriptionInput] = useState<string>('');
+  const [dateInput, setDateInput] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // Handle Adding New Transaction
-  const handleAddTransaction = (e: React.FormEvent) => {
-    e.preventDefault();
-    const val = parseFloat(txAmount);
-    if (!val || val <= 0) return;
+  const fetchDashboardAnalytics = async () => {
+    try {
+      setLoading(true);
 
-    if (txType === 'expense') {
-      setTotalExpenses((prev) => prev + val);
-      setTotalBalance((prev) => prev - val);
+      const [transactions, categories] = await Promise.all([
+        transactionApi.getAll(),
+        categoryApi.getAll(),
+      ]);
 
-      // Update category total amount
-      setCategories((prev) => {
-        const updated = prev.map((cat) =>
-          cat.name === txCategory ? { ...cat, amount: cat.amount + val } : cat
-        );
-        const newTotalSpent = updated.reduce((acc, curr) => acc + curr.amount, 0);
-        return updated.map((cat) => ({
-          ...cat,
-          percentage: Math.round((cat.amount / newTotalSpent) * 100),
-        }));
+      setRawTransactions(transactions);
+      setCategoriesList(categories);
+
+      let incomeSum = 0;
+      let expenseSum = 0;
+      const categoryExpenseMap: Record<string, number> = {};
+
+      transactions.forEach((tx: any) => {
+        const amt = Number(tx.amount) || 0;
+        if (tx.type === 'INCOME') {
+          incomeSum += amt;
+        } else if (tx.type === 'EXPENSE') {
+          expenseSum += amt;
+          const catId = tx.categoryId || tx.category?.id || 'uncategorized';
+          categoryExpenseMap[catId] = (categoryExpenseMap[catId] || 0) + amt;
+        }
       });
-    } else {
-      setMonthlyIncome((prev) => prev + val);
-      setTotalBalance((prev) => prev + val);
-    }
 
-    // Reset and Close
-    setTxAmount('');
-    setTxTitle('');
-    setIsModalOpen(false);
+      setTotalIncome(incomeSum);
+      setTotalExpenses(expenseSum);
+      setTotalBalance(incomeSum - expenseSum);
+
+      const computedStats: CategoryStat[] = categories.map((cat: any, idx: number) => {
+        const spent = categoryExpenseMap[cat.id] || 0;
+        const percentage = expenseSum > 0 ? Math.round((spent / expenseSum) * 100) : 0;
+        const style = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+
+        return {
+          id: cat.id,
+          name: cat.name,
+          amount: spent,
+          percentage,
+          color: style.color,
+          text: style.text,
+        };
+      });
+
+      setCategoriesStats(computedStats);
+    } catch (error) {
+      console.error('Failed to load dashboard statistics:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchDashboardAnalytics();
+  }, []);
+
+  // تجميع وإعداد البيانات للمخططات البيانية
+  const chartData = useMemo(() => {
+    if (!rawTransactions || rawTransactions.length === 0) return [];
+
+    const sortedTx = [...rawTransactions].sort((a, b) => 
+      new Date(a.transactionDate || a.createdAt).getTime() - new Date(b.transactionDate || b.createdAt).getTime()
+    );
+
+    const dateMap: Record<string, { income: number; expense: number }> = {};
+
+    sortedTx.forEach((tx) => {
+      const d = new Date(tx.transactionDate || tx.createdAt);
+      const dateKey = timeGroupBy === 'DAY'
+        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = { income: 0, expense: 0 };
+      }
+
+      const amt = Number(tx.amount) || 0;
+      if (tx.type === 'INCOME') {
+        dateMap[dateKey].income += amt;
+      } else if (tx.type === 'EXPENSE') {
+        dateMap[dateKey].expense += amt;
+      }
+    });
+
+    let runningBalance = 0;
+    return Object.keys(dateMap).map((key) => {
+      const inc = dateMap[key].income;
+      const exp = dateMap[key].expense;
+      runningBalance += (inc - exp);
+
+      return {
+        date: key,
+        income: inc,
+        expense: exp,
+        balance: runningBalance,
+      };
+    });
+  }, [rawTransactions, timeGroupBy]);
+
+  const openAddModal = (type: 'INCOME' | 'EXPENSE') => {
+    setTxType(type);
+    setAmountInput('');
+    setDescriptionInput('');
+    setDateInput(new Date().toISOString().split('T')[0]);
+    if (categoriesList.length > 0) {
+      setSelectedCatId(categoriesList[0].id);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCreateTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amountInput || Number(amountInput) <= 0) return;
+
+    try {
+      setSubmitting(true);
+      await transactionApi.create({
+        amount: Number(amountInput),
+        type: txType,
+        categoryId: txType === 'EXPENSE' ? (selectedCatId || undefined) : undefined,
+        description: descriptionInput,
+        transactionDate: new Date(dateInput).toISOString(),
+      });
+
+      setIsModalOpen(false);
+      await fetchDashboardAnalytics();
+    } catch (err) {
+      console.error('Failed to add transaction:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading && !isModalOpen) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3">
+        <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+        <p className="text-slate-400 text-xs font-medium">Loading financial analytics...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/60 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
             Financial Dashboard
           </h1>
           <p className="text-slate-400 text-xs mt-1">
-            Real-time overview of cashflow, monthly trends, and expense breakdowns.
+            Real-time balance trends and category expense analytics.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Add Transaction
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => openAddModal('INCOME')}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95"
+          >
+            <PlusCircle className="w-4 h-4" /> Add Income
+          </button>
+          <button
+            onClick={() => openAddModal('EXPENSE')}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-semibold transition-all active:scale-95"
+          >
+            <PlusCircle className="w-4 h-4" /> Add Expense
+          </button>
+        </div>
       </div>
 
-      {/* Summary Stat Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>Total Balance</span>
             <Wallet className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl font-bold text-white mt-2">${totalBalance.toLocaleString()}</div>
-          <div className="text-[11px] text-emerald-400 mt-1 font-medium flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +12% from last month
+          <div className={`text-2xl font-bold mt-2 tracking-tight ${totalBalance >= 0 ? 'text-slate-100' : 'text-rose-400'}`}>
+            {formatCurrency(totalBalance)}
+          </div>
+          <div className="text-[11px] text-emerald-400 mt-1.5 font-medium flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> Cumulative Net
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-            <span>Monthly Income</span>
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+            <span>Total Income</span>
             <ArrowUpRight className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold text-white mt-2">${monthlyIncome.toLocaleString()}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Salary & Freelance</div>
+          <div className="text-2xl font-bold text-slate-100 mt-2 tracking-tight">
+            {formatCurrency(totalIncome)}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1.5 font-medium">Total Revenue</div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>Total Expenses</span>
             <ArrowDownRight className="w-4 h-4 text-rose-400" />
           </div>
-          <div className="text-2xl font-bold text-white mt-2">${totalExpenses.toLocaleString()}</div>
-          <div className="text-[11px] text-rose-400 mt-1 font-medium flex items-center gap-1">
-            <TrendingDown className="w-3 h-3" /> +4.2% over target budget
+          <div className="text-2xl font-bold text-slate-100 mt-2 tracking-tight">
+            {formatCurrency(totalExpenses)}
+          </div>
+          <div className="text-[11px] text-rose-400 mt-1.5 font-medium flex items-center gap-1">
+            <TrendingDown className="w-3 h-3" /> Outflow
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Chart & Category Breakdown */}
+      {/* Main Charts Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* SVG Analytics Chart */}
-        <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+        
+        {/* Recharts Main Visualization Container */}
+        <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800/80 rounded-xl p-6 backdrop-blur-md space-y-4 flex flex-col justify-between">
+          
+          {/* Controls Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-200">Income vs Expenses Trend</h2>
-              <p className="text-[11px] text-slate-500">Monthly breakdown for 2026</p>
+              <h2 className="text-sm font-semibold text-slate-200">Financial Trend</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {chartView === 'NET' ? 'Cumulative net balance progression over time' : 'Income vs Expense cashflow visualizer'}
+              </p>
             </div>
-            <span className="text-xs text-indigo-400 font-semibold bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
-              August 2026
-            </span>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+                <button
+                  onClick={() => setTimeGroupBy('DAY')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    timeGroupBy === 'DAY' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Days
+                </button>
+                <button
+                  onClick={() => setTimeGroupBy('MONTH')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    timeGroupBy === 'MONTH' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Months
+                </button>
+              </div>
+
+              <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button
+                  onClick={() => setChartView('NET')}
+                  title="Net Balance Trend (Stripe/Revolut Style)"
+                  className={`p-1.5 rounded-md transition-all ${
+                    chartView === 'NET' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <LineIcon className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setChartView('AREA')}
+                  title="Income & Expense Area"
+                  className={`p-1.5 rounded-md transition-all ${
+                    chartView === 'AREA' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <AreaIcon className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setChartView('BAR')}
+                  title="Grouped Bar Chart"
+                  className={`p-1.5 rounded-md transition-all ${
+                    chartView === 'BAR' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <BarIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Clean Vector SVG Area Chart */}
-          <div className="h-64 w-full relative pt-4">
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 180" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                </linearGradient>
-                <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid lines */}
-              <line x1="0" y1="30" x2="500" y2="30" stroke="#1e293b" strokeDasharray="3 3" />
-              <line x1="0" y1="80" x2="500" y2="80" stroke="#1e293b" strokeDasharray="3 3" />
-              <line x1="0" y1="130" x2="500" y2="130" stroke="#1e293b" strokeDasharray="3 3" />
-
-              {/* Income Area & Line */}
-              <path d="M 0,140 Q 100,100 200,60 T 400,40 T 500,20 L 500,170 L 0,170 Z" fill="url(#incomeGrad)" />
-              <path d="M 0,140 Q 100,100 200,60 T 400,40 T 500,20" fill="none" stroke="#10b981" strokeWidth="3" />
-
-              {/* Expense Area & Line */}
-              <path d="M 0,160 Q 100,130 200,110 T 400,90 T 500,80 L 500,170 L 0,170 Z" fill="url(#expenseGrad)" />
-              <path d="M 0,160 Q 100,130 200,110 T 400,90 T 500,80" fill="none" stroke="#6366f1" strokeWidth="3" />
-            </svg>
+          {/* Render Active Chart View */}
+          <div className="h-64 w-full pt-4">
+            {chartData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-xs space-y-2">
+                <Calendar className="w-8 h-8 stroke-1 text-slate-600" />
+                <p>No transactions recorded to show timeline.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                {chartView === 'NET' ? (
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#090d16', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }} 
+                      formatter={(val: any) => [formatCurrency(Number(val)), 'Net Balance']}
+                    />
+                    <Area type="monotone" dataKey="balance" name="Net Balance" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#netGrad)" />
+                  </AreaChart>
+                ) : chartView === 'AREA' ? (
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#090d16', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }} 
+                      formatter={(val: any, name: any) => [formatCurrency(Number(val)), name === 'income' ? 'Income' : 'Expense']}
+                    />
+                    <Area type="monotone" dataKey="income" name="income" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#incomeGrad)" />
+                    <Area type="monotone" dataKey="expense" name="expense" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#expenseGrad)" />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#090d16', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val: any, name: any) => [formatCurrency(Number(val)), name === 'income' ? 'Income' : 'Expense']}
+                    />
+                    <Bar dataKey="income" name="income" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expense" name="expense" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            )}
           </div>
 
-          {/* Chart Legend */}
-          <div className="flex items-center justify-center gap-6 pt-2 border-t border-slate-800/80 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-              <span className="text-slate-400 font-medium">Income</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-indigo-500"></span>
-              <span className="text-slate-400 font-medium">Expenses</span>
-            </div>
+          <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+            {chartView === 'NET' ? (
+              <span className="flex items-center gap-1.5 text-indigo-400 font-medium">
+                <span className="w-2 h-2 rounded-full bg-indigo-500" /> Cumulative Net Trend
+              </span>
+            ) : (
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Income
+                </span>
+                <span className="flex items-center gap-1.5 text-rose-400 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" /> Expense
+                </span>
+              </div>
+            )}
+            <span>Savings Rate: <strong className="text-slate-200">{totalIncome > 0 ? `${Math.max(0, Math.round(((totalIncome - totalExpenses) / totalIncome) * 100))}%` : '0%'}</strong></span>
           </div>
         </div>
 
-        {/* Expenses by Category Breakdown */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <PieIcon className="w-4 h-4 text-indigo-400" /> Categories Share
+        {/* Categories Breakdown */}
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-6 backdrop-blur-md space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+            <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <PieIcon className="w-4 h-4 text-indigo-400" /> Expenses by Category
             </h2>
-            <span className="text-[10px] text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800">
-              Auto-Calculated
-            </span>
           </div>
 
           <div className="space-y-4">
-            {categories.map((cat) => {
-              const IconComp = cat.icon;
-              return (
+            {categoriesStats.length === 0 ? (
+              <p className="text-slate-500 text-xs text-center py-6">No categories recorded yet.</p>
+            ) : (
+              categoriesStats.map((cat) => (
                 <div key={cat.id} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`p-1.5 rounded-lg bg-slate-950 border border-slate-800 ${cat.text}`}>
-                        <IconComp className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1 rounded-md bg-slate-950 border border-slate-800 ${cat.text}`}>
+                        <Tag className="w-3 h-3" />
                       </div>
-                      <span className="font-semibold text-slate-300">{cat.name}</span>
+                      <span className="font-medium text-slate-300">{cat.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-white">${cat.amount.toLocaleString()}</span>
+                      <span className="font-semibold text-slate-100">{formatCurrency(cat.amount)}</span>
                       <span className="text-slate-500 text-[10px] ml-1.5">({cat.percentage}%)</span>
                     </div>
                   </div>
-                  <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800/50">
+                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/50">
                     <div
                       className={`h-full ${cat.color} rounded-full transition-all duration-500`}
                       style={{ width: `${cat.percentage}%` }}
                     />
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      {/* Add Transaction Modal */}
+      {/* Modal المعاملات مع حقل التاريخ */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                Add New Transaction
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <h3 className="text-base font-semibold text-slate-100">
+                Add {txType === 'INCOME' ? 'Income' : 'Expense'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white p-1 rounded-lg">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAddTransaction} className="space-y-4">
-              {/* Type Switcher */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setTxType('expense')}
-                  className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    txType === 'expense'
-                      ? 'bg-rose-500/10 border-rose-500/40 text-rose-400'
-                      : 'bg-slate-950 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  Expense
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTxType('income')}
-                  className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    txType === 'income'
-                      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                      : 'bg-slate-950 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  Income
-                </button>
-              </div>
-
-              {/* Title Input */}
+            <form onSubmit={handleCreateTransaction} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Title / Description</label>
-                <input
-                  type="text"
-                  required
-                  value={txTitle}
-                  onChange={(e) => setTxTitle(e.target.value)}
-                  placeholder="e.g. Grocery Store, Client Payment..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
-                />
-              </div>
-
-              {/* Amount Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Amount ($)</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Amount ($)</label>
                 <input
                   type="number"
-                  required
                   step="0.01"
-                  value={txAmount}
-                  onChange={(e) => setTxAmount(e.target.value)}
+                  required
                   placeholder="0.00"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
-              {/* Category Select (Only for Expenses) */}
-              {txType === 'expense' && (
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Transaction Date</label>
+                <input
+                  type="date"
+                  required
+                  value={dateInput}
+                  onChange={(e) => setDateInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              {txType === 'EXPENSE' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Select Category</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Category</label>
                   <select
-                    value={txCategory}
-                    onChange={(e) => setTxCategory(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+                    value={selectedCatId}
+                    onChange={(e) => setSelectedCatId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                   >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
+                    {categoriesList.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
                       </option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  placeholder="Optional description..."
+                  value={descriptionInput}
+                  onChange={(e) => setDescriptionInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2.5 border-t border-slate-800/60">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-all"
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-indigo-600/20"
+                  disabled={submitting}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all flex items-center justify-center min-w-[110px] ${
+                    txType === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                  }`}
                 >
-                  Save Entry
+                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Transaction'}
                 </button>
               </div>
             </form>
