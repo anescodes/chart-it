@@ -5,7 +5,7 @@ export interface CreateTransactionDto {
   type: 'INCOME' | 'EXPENSE';
   categoryId?: string | null;
   description?: string;
-  transactionDate?: string; // 👈 تغيير اسم الحقل هنا
+  transactionDate?: string;
 }
 
 export const transactionApi = {
@@ -21,6 +21,14 @@ export const transactionApi = {
 
   delete: async (id: string) => {
     const res = await apiClient.delete(`/transactions/${id}`);
+    return res.data;
+  },
+
+  // 👈 دالة التصدير الجديدة
+  exportCsv: async (): Promise<Blob> => {
+    const res = await apiClient.get('/transactions/export/csv', {
+      responseType: 'blob', // 👈 يتطلب استلام الملف كـ Blob
+    });
     return res.data;
   },
 };

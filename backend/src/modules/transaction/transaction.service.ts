@@ -115,4 +115,41 @@ export class TransactionService {
 
     return deleted;
   }
+
+  async exportTransactionsCsv(userId: string): Promise<string> {
+    const userTransactions = await db
+      .select({
+        id: transactions.id,
+        amount: transactions.amount,
+        type: transactions.type,
+        categoryName: categories.name,
+        description: transactions.description,
+        transactionDate: transactions.transactionDate,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.transactionDate));
+
+    // رؤوس الأعمدة في ملف CSV
+    const headers = ['ID', 'Date', 'Type', 'Category', 'Amount', 'Description'];
+    
+    // تحويل كل معاملة إلى السطر المناسب في CSV مع معالجة النصوص لمنع الفواصل التي تخرب التنسيق
+    const rows = userTransactions.map((tx) => {
+      const dateStr = tx.transactionDate ? new Date(tx.transactionDate).toISOString().split('T')[0] : '';
+      const category = tx.categoryName || 'Uncategorized';
+      const description = tx.description ? `"${tx.description.replace(/"/g, '""')}"` : '""';
+      
+      return [
+        tx.id,
+        dateStr,
+        tx.type,
+        `"${category}"`,
+        tx.amount,
+        description,
+      ].join(',');
+    });
+
+    return [headers.join(','), ...rows].join('\n');
+  }
 }
