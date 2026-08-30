@@ -3,5 +3,5 @@ dotenv.config()
 import app from "./app.js"
 
 app.listen(5000,()=>{
-     console.log("War just Started ");
+     console.log("Server run on localhost:5000") ;
 })
