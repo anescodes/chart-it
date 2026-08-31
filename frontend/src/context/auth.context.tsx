@@ -11,6 +11,7 @@ export interface IAuthContext {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   changePassword: (credentials: ChangePasswordCredentials) => Promise<void>;
+  changeUsername: (newUsername: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -67,6 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.changePassword(credentials);
   };
 
+  const changeUsername = async (newUsername: string) => {
+    const updatedUser = await authApi.changeUsername({ newUsername });
+    setUser((prev) => (prev ? { ...prev, username: updatedUser.username } : updatedUser));
+  };
+
   const contextValue: IAuthContext = {
     user,
     token,
@@ -75,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     changePassword,
+    changeUsername,
     logout,
   };
 

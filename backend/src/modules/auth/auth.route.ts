@@ -9,6 +9,6 @@ const authRouter = Router();
 authRouter.post("/register", authController.register);
 authRouter.post("/login", authController.login);
 
-authRouter.post("/change-password", authenticateToken, authController.changePassword);
-
+authRouter.patch("/change-password", authenticateToken, authController.changePassword);
+authRouter.patch("/change-username", authenticateToken, authController.changeUsername);
 export default authRouter;

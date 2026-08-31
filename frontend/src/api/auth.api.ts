@@ -1,6 +1,11 @@
-// src/api/auth.api.ts
 import { apiClient } from './client';
-import type { LoginCredentials, RegisterCredentials, AuthResponse, User, ChangePasswordCredentials } from '../types/auth.types';
+import type { 
+  LoginCredentials, 
+  RegisterCredentials, 
+  AuthResponse, 
+  User, 
+  ChangePasswordCredentials 
+} from '../types/auth.types';
 
 interface ApiResponse<T> {
   statusCode: number;
@@ -25,7 +30,12 @@ export const authApi = {
     return response.data.data;
   },
 
-  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<void> => {
-    await apiClient.post<ApiResponse<void>>('/auth/change-password', data);
+  changePassword: async (data: ChangePasswordCredentials): Promise<void> => {
+    await apiClient.patch<ApiResponse<void>>('/auth/change-password', data);
+  },
+
+  changeUsername: async (data: { newUsername: string }): Promise<User> => {
+    const response = await apiClient.patch<ApiResponse<User>>('/auth/change-username', data);
+    return response.data.data;
   },
 };
