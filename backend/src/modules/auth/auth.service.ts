@@ -130,4 +130,47 @@ export class AuthService {
 
     return true;
   }
+  async changeUsername(userId: string, newUsername: string) {
+    const cleanUsername = newUsername.trim().toLowerCase();
+
+    // 1. Check if user exists
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // 2. Prevent updating to the same username
+    if (currentUser.username === cleanUsername) {
+      throw new ApiError(400, "New username cannot be identical to current username");
+    }
+
+    // 3. Check if the username is already taken by another account
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, cleanUsername))
+      .limit(1);
+
+    if (existingUser) {
+      throw new ApiError(409, "Username is already taken");
+    }
+
+    // 4. Perform the update
+    const [updatedUser] = await db
+      .update(users)
+      .set({ username: cleanUsername })
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+      });
+
+    return updatedUser;
+  }
 }

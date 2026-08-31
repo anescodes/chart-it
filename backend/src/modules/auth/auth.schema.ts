@@ -14,7 +14,15 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters'),
 });
+export const changeUsernameSchema = z.object({
+  newUsername: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(50, "Username cannot exceed 50 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+});
 
+export type ChangeUsernameInput = z.infer<typeof changeUsernameSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 // استخراج الأنواع لـ TypeScript
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { AuthService } from "./auth.service.js";
-import { registerSchema, loginSchema, changePasswordSchema } from "./auth.schema.js";
+import { registerSchema, loginSchema, changePasswordSchema, changeUsernameSchema } from "./auth.schema.js";
 import { ApiError } from "../../utils/ApiError.js";
 
 const authService = new AuthService();
@@ -53,4 +53,18 @@ export class AuthController {
       .status(200)
       .json(new ApiResponse(200, result, "Password changed successfully"));
   });
+  changeUsername = asyncHandler(async (req: Request, res: Response) => {
+  const { newUsername } = changeUsernameSchema.parse(req.body);
+  const userId = req.userId;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  const updatedUser = await authService.changeUsername(userId, newUsername);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Username updated successfully"));
+});
 }
