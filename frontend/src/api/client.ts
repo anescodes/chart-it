@@ -7,11 +7,10 @@ export const apiClient = axios.create({
   },
 });
 
-// إرفاق الـ Token تلقائياً في الـ Headers لكل طلب
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token && config.headers) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -19,7 +18,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// التعامل مع خطأ انقضاء صلاحية الـ Token (401)
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
