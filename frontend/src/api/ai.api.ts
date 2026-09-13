@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 // Ensure your axios instance is configured with base URL (e.g., http://localhost:5000/api)
 import { apiClient } from './client'; 
 

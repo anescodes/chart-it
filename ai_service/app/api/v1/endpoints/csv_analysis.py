@@ -2,13 +2,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 import pandas as pd
 import io
 from app.services.ml_pipeline import process_csv_data
-from app.services.llm_service import generate_financial_insights
+from app.services.inference_service import generate_financial_insights
 
 router = APIRouter()
 
 @router.post("/analyze-csv")
 async def analyze_csv(file: UploadFile = File(...)):
-    if not file.filename.endswith('.csv'):
+    if not file.filename or not file.filename.lower().endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only .csv files are supported.")
     
     try:
@@ -30,5 +30,5 @@ async def analyze_csv(file: UploadFile = File(...)):
         }
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error during analysis.")

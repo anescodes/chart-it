@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, TrendingDown, Wallet, Flame, PieChart, AlertCircle } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Wallet, Flame, PieChart } from 'lucide-react';
 import { transactionApi } from '../api/transaction.api';
 import { analyticsApi, type AnalyticsResponse } from '../api/analytics.api';
 

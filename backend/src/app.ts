@@ -6,6 +6,7 @@ import authRouter from './modules/auth/auth.route.js';
 import categoryRouter from './modules/categories/categories.route.js';
 import transactionRouter from  './modules/transaction/transaction.route.js';
 import analyticsRouter from './modules/analytics/analytics.route.js';
+import aiRouter from './modules/ai/ai.route.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/transactions', transactionRouter);
 
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/ai', aiRouter);
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({

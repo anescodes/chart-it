@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
-from app.api.endpoints import router as api_router  # Adjust import to match your router path
+from app.core.config import settings
+from app.api.v1.router import router as api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

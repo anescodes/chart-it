@@ -17,7 +17,10 @@ export const analyzeCsvController = async (req: Request, res: Response) => {
 
     // Send to Python Microservice
     const response = await axios.post('http://localhost:8000/api/v1/analyze-csv', formData, {
-      headers: { ...formData.getHeaders() },
+      headers: {
+        ...formData.getHeaders(),
+        'X-API-KEY': process.env.AI_SERVICE_API_KEY || 'your-internal-secret-key',
+      },
     });
 
     // Return the successful FastAPI response to the React frontend
