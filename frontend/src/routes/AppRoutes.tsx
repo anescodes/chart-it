@@ -8,7 +8,7 @@ import { DashboardPage } from '../pages/DashboardPage';
 import { TransactionsPage } from '../pages/TransactionsPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
-import { AIAssistantPage } from '../pages/AIAssistantPage';
+import AIAssistantPage from '../pages/AIAssistantPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { AuthPage } from '../pages/Authpage';
 
