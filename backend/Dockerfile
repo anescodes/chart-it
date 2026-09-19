@@ -1,15 +1,17 @@
-# --- Stage 1: Build Stage ---
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
+
 RUN npm ci
 
 COPY . .
+
 RUN npm run build
 
-# --- Stage 2: Production Stage ---
+
+# Production stage
 FROM node:20-alpine
 
 WORKDIR /app
@@ -17,12 +19,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --only=production
 
+RUN npm ci --omit=dev
+
+# Compiled application
 COPY --from=builder /app/dist ./dist
+
+# Drizzle migration files
+COPY --from=builder /app/drizzle ./drizzle
 
 USER node
 
 EXPOSE 5000
 
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/server.js"]
