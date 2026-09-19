@@ -17,7 +17,6 @@ export const categories = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }), // Nullable for global defaults, or tied to a user
   name: varchar('name', { length: 100 }).notNull(),
-  type: transactionTypeEnum('type').notNull(),
   color: varchar('color', { length: 7 }).default('#6366f1').notNull(), // Hex code for UI charts (e.g. #10B981)
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

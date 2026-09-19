@@ -1,11 +1,8 @@
-// src/types/category.types.ts
-
 export interface Category {
   id: string;
   userId?: string;
   name: string;
   color: string;
-  type?: 'INCOME' | 'EXPENSE';
   iconName: string;
   itemCount?: number;
   createdAt?: string;
@@ -15,13 +12,11 @@ export interface Category {
 export interface CreateCategoryInput {
   name: string;
   color: string;
-  type: 'INCOME' | 'EXPENSE';
   iconName?: string;
 }
 
 export interface UpdateCategoryInput {
   name?: string;
   color?: string;
-  type?: 'INCOME' | 'EXPENSE';
   iconName?: string;
 }

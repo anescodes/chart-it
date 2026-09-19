@@ -106,6 +106,53 @@ Ingestion & Preprocessing: Parses CSV into a Pandas DataFrame, cleans null value
 
 Feature Engineering & ML: Calculates spending variance, moving averages, and runs Isolation Forest to flag unusual spending anomalies.
 
-LLM Summary: Sends the calculated statistical summary (not raw full file) to the LLM to generate plain-text Arabic/English financial insights.
+LLM Summary: Sends the calculated statistical summary (not raw full file) to the LLM to generate plain-text English financial insights.
 
 Result: FastAPI returns structured charts data + AI insights back to Express -> Frontend.
+
+## 2. Deployment & Running the Application
+
+The entire application is containerized and can be started with a single command.
+
+### Start the complete application
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+This command automatically:
+
+* Builds the **Frontend** container.
+* Builds the **Express Backend** container.
+* Builds the **FastAPI AI/ML** container.
+* Starts the **PostgreSQL** database.
+* Creates the PostgreSQL database and user on first initialization.
+* Waits for PostgreSQL and FastAPI to become healthy before starting the backend.
+* Automatically runs **Drizzle database migrations**.
+* Creates/updates the required database tables.
+* Starts the complete application stack.
+
+### Application URLs
+
+After startup:
+
+* Frontend: `http://localhost:5173`
+* Backend API: `http://localhost:5000`
+* FastAPI: `http://localhost:8000`
+* FastAPI documentation: `http://localhost:8000/docs`
+
+The PostgreSQL database is used internally by Docker and does not need to expose port `5432` to the host.
+
+### Production-ready workflow
+
+A new user or client should only need Docker installed and then run:
+
+```bash
+docker compose up --build
+```
+
+No manual PostgreSQL installation, database creation, table creation, or migration commands are required.
+
+> **Note:** Do not use `docker compose down -v` during normal operation because it removes the PostgreSQL volume and therefore deletes the stored database data.
